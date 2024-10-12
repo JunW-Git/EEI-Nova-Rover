@@ -2,7 +2,7 @@
 
 import requests
 
-address = "http://192.168.68.51"
+address = "http://IP ADDRESS HERE"
 
 response = requests.post(address, {"WWADDUP"})
 response.close()
