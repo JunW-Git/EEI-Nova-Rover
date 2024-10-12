@@ -55,7 +55,7 @@ void loop() {
       if (client.available()) {
         char c = client.read(); // read byte
         payload = client.readString(); // read message sent
-        Serial.println(payload) // Send message to arduino
+        Serial.println(payload); // Send message to arduino
         
         // If byte is a newline character
         if (c == '\n') {
