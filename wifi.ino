@@ -1,7 +1,9 @@
+// Test file - Seeing if wifi connection works with python sending post requests
+
 #include<ESP8266WiFi.h>
 
-const char* ssid="NOVA_A068";
-const char* password="west9433";
+const char* ssid="SSID";
+const char* password="PASSWORD";
 
 WiFiServer server(80);
 
