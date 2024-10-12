@@ -81,7 +81,6 @@ void loop() {
         }
       }
     }
+    client.stop();
   }
-  client.stop();
-  Serial.println("");
 }
