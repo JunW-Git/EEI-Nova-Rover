@@ -7,7 +7,6 @@ const char* password="PASSWORD";
 
 WiFiServer server(80);
 
-String header;
 String payload;
 
 unsigned long currentTime = millis();
@@ -42,37 +41,47 @@ void loop() {
   // put your main code here, to run repeatedly:
   WiFiClient client = server.available(); // Listen for incoming clients
 
+  // Connect new client
   if (client) {
-    Serial.println("New Client");
     String currentLine = "";
     currentTime = millis();
     previousTime = currentTime;
+
+    // Make sure client is still connected
     while (client.connected() && currentTime - previousTime <= timeoutTime) {
       currentTime = millis();
+    
+      // Check if client sent byte(s)
       if (client.available()) {
-        char c = client.read();
-        payload = client.readString();
-        Serial.println(payload);
-        header += c;
+        char c = client.read(); // read byte
+        payload = client.readString(); // read message sent
+        Serial.println(payload) // Send message to arduino
+        
+        // If byte is a newline character
         if (c == '\n') {
+
+          // End of HTTP request => send response and close connection
           if (currentLine.length() == 0) {
             client.println("HTTP/1.1 200 OK");
-            client.println("Content-type: text/html");
+            client.println("Content-type:text/html");
             client.println("Connection: close");
             client.println();
             break;
-          } else {
+          } 
+          
+          // If just newline then clear currentline
+          else {
             currentLine = "";
           }
-        } else if (c != '\r') {
-          currentLine += c;
+        } 
+        
+        // If there is anything but a carriage return character
+        else if (c != '\r') {
+          currentLine += c; // add it to the end of currentline
         }
       }
     }
   }
-  header = "";
   client.stop();
-  Serial.println("Client Disconnected");
   Serial.println("");
-  delay(1000);
 }
