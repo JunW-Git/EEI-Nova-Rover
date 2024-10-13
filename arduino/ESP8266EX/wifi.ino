@@ -1,86 +1,116 @@
-// Test file - Seeing if wifi connection works with python sending post requests
+#include <ESP8266WiFi.h>
+#include <WiFiUDP.h>
 
-#include<ESP8266WiFi.h>
+// Replace these with your network credentials
+const char* ssid = "SSID";
+const char* password = "PASSWORD";
 
-const char* ssid="SSID";
-const char* password="PASSWORD";
+const int PIN_0 = 0; //GPIO0 BLUE CABLE
+const int PIN_2 = 2; // GPIO2 GREY CABLE
+const int PIN_3 = 3; // GPIO3 or RX YELLOW CABLE
+const int PIN_16 = 16; // GPIO16 or RST GREEN CABLE
 
-WiFiServer server(80);
+// UDP settings
+unsigned int localUdpPort = 4210;  // Local port to listen on
+char incomingPacket[255];  // Buffer for incoming packets
+WiFiUDP udp;
 
-String payload;
-
-unsigned long currentTime = millis();
-unsigned long previousTime = 0;
-const long timeoutTime = 2000;
+String message;
+String previous = "";
 
 void setup() {
-  // put your setup code here, to run once:
-  delay(800); // Give some time when connecting to power
-
   Serial.begin(9600);
-  Serial.println();
-  Serial.print("Connecting to WiFi..");
-  Serial.print(ssid);
+  
+  // Change all IO pins to output
+  pinMode(PIN_0, OUTPUT);
+  pinMode(PIN_2, OUTPUT);
 
+  pinMode(PIN_3, FUNCTION_3);
+  pinMode(PIN_3, OUTPUT);
+
+  pinMode(PIN_16, OUTPUT);
+
+  // Connect to Wi-Fi
   WiFi.begin(ssid, password);
-
-  Serial.println();
-  Serial.print("Connecting");
-
-  while(WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(". ");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+//    Serial.println("Connecting to WiFi...");
   }
-  Serial.println("WiFi Connected");
-  Serial.println("IP Address: ");
-  Serial.print(WiFi.localIP());
-  server.begin();
+  
+//  Serial.print("Connected to ");
+//  Serial.println(ssid);
+//  Serial.print("IP Address: ");
+//  Serial.println(WiFi.localIP());
+
+  // Start listening for UDP packets
+  udp.begin(localUdpPort);
+//  Serial.printf("UDP listening on IP: %s, Port: %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  WiFiClient client = server.available(); // Listen for incoming clients
-
-  // Connect new client
-  if (client) {
-    String currentLine = "";
-    currentTime = millis();
-    previousTime = currentTime;
-
-    // Make sure client is still connected
-    while (client.connected() && currentTime - previousTime <= timeoutTime) {
-      currentTime = millis();
+  int packetSize = udp.parsePacket();
+  if (packetSize) {
+    // Read the packet into the buffer
+    int len = udp.read(incomingPacket, 255);
+    if (len > 0) {
+      incomingPacket[len] = 0;  // Null-terminate the string
+    }
     
-      // Check if client sent byte(s)
-      if (client.available()) {
-        char c = client.read(); // read byte
-        payload = client.readString(); // read message sent
-        Serial.println(payload); // Send message to arduino
-        
-        // If byte is a newline character
-        if (c == '\n') {
+    Serial.println(incomingPacket);
+    message = incomingPacket;
+    message.trim();
 
-          // End of HTTP request => send response and close connection
-          if (currentLine.length() == 0) {
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-type:text/html");
-            client.println("Connection: close");
-            client.println();
-            break;
-          } 
-          
-          // If just newline then clear currentline
-          else {
-            currentLine = "";
-          }
-        } 
-        
-        // If there is anything but a carriage return character
-        else if (c != '\r') {
-          currentLine += c; // add it to the end of currentline
-        }
+    // Only change signals when the message changes
+    if (!message.equals(previous)) {
+      // Send different GPIO signals based off direction
+      if (message.equals("w")) { // 1 0 0 0
+        digitalWrite(PIN_0, HIGH);
+        digitalWrite(PIN_2, LOW);
+        digitalWrite(PIN_3, LOW);
+        digitalWrite(PIN_16, LOW);
+      } else if (message.equals("a")) { // 0 1 0 0
+        digitalWrite(PIN_0, LOW);
+        digitalWrite(PIN_2, HIGH);
+        digitalWrite(PIN_3, LOW);
+        digitalWrite(PIN_16, LOW);
+      } else if (message.equals("s")) { // 0 0 1 0
+        digitalWrite(PIN_0, LOW);
+        digitalWrite(PIN_2, LOW);
+        digitalWrite(PIN_3, HIGH);
+        digitalWrite(PIN_16, LOW);
+      } else if (message.equals("d")) { // 0 0 0 1
+        digitalWrite(PIN_0, LOW);
+        digitalWrite(PIN_2, LOW);
+        digitalWrite(PIN_3, LOW);
+        digitalWrite(PIN_16, HIGH);
+      } else if (message.equals("wa")) { // 1 1 0 0
+        digitalWrite(PIN_0, HIGH);
+        digitalWrite(PIN_2, HIGH);
+        digitalWrite(PIN_3, LOW);
+        digitalWrite(PIN_16, LOW);
+      } else if (message.equals("wd")) { // 0 1 1 0
+        digitalWrite(PIN_0, LOW);
+        digitalWrite(PIN_2, HIGH);
+        digitalWrite(PIN_3, HIGH);
+        digitalWrite(PIN_16, LOW);
+      } else if (message.equals("sa")) { // 0 0 1 1
+        digitalWrite(PIN_0, LOW);
+        digitalWrite(PIN_2, LOW);
+        digitalWrite(PIN_3, HIGH);
+        digitalWrite(PIN_16, HIGH);
+      } else if (message.equals("sd")) { // 1 1 1 0
+        digitalWrite(PIN_0, HIGH);
+        digitalWrite(PIN_2, HIGH);
+        digitalWrite(PIN_3, HIGH);
+        digitalWrite(PIN_16, LOW);
+      } else {
+        digitalWrite(PIN_0, LOW);
+        digitalWrite(PIN_2, LOW);
+        digitalWrite(PIN_3, LOW);
+        digitalWrite(PIN_16, LOW);
       }
     }
-    client.stop();
+
+    previous = message;
   }
 }
